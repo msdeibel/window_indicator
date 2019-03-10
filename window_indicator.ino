@@ -6,14 +6,7 @@
 #define LED2 D6
 #define LED3 D7
 
-void internalLedOff();
-void setLedPinsModeToOutput();
-void handleRequest(String request);
-void respondWithHttp200ToClient(WiFiClient client);
-void doBlink();
-void toggleLeds();
-
-const long blinkIntervalInMs = 800;
+const long blinkIntervalInMs = 700;
 
 bool isWindowOpen = false;
 int ledState = LOW;
@@ -22,6 +15,9 @@ unsigned long previousMilliSeconds = 0;
 WiFiServer server(80);
  
 void setup() {
+  Serial.begin(115200);
+  delay(100);
+  
   // The internal LED is automatically turned on in normal operation mode,
   // but not needed in this case, so turn it off right at the beginning.
   internalLedOff();
@@ -32,12 +28,17 @@ void setup() {
   toggleLeds();  
 
   // Connect to WiFi network
+  ledState = HIGH;
+  toggleLeds();
   WiFi.begin(ssid, password);
  
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
   }
 
+  ledState = LOW;
+  toggleLeds();
+  
   // Start the server
   server.begin();
 }
@@ -60,11 +61,17 @@ void loop() {
   String request = client.readStringUntil('\r');
   client.flush();
 
-  handleRequest(request);
+  if (request.indexOf("/LED=ON") != -1)  {
+    isWindowOpen = true;
+  } else if (request.indexOf("/LED=OFF") != -1) {
+    isWindowOpen = false;
+    ledState = LOW;
+    toggleLeds();
+  }
 
-  respondWithHttp200ToClient(client);
+  client.println("HTTP/1.1 200 OK");
+  client.println(""); //  do not forget this one
 }
-
 
 void internalLedOff() {
   pinMode(LED, OUTPUT);
@@ -75,21 +82,6 @@ void setLedPinsModeToOutput() {
   pinMode(LED1, OUTPUT);  
   pinMode(LED2, OUTPUT);
   pinMode(LED3, OUTPUT);
-}
-
-void handleRequest(String request) {
-  if (request.indexOf("/LED=ON") != -1)  {
-    isWindowOpen = true;
-  } else if (request.indexOf("/LED=OFF") != -1) {
-    isWindowOpen = false;
-    ledState = LOW;
-    toggleLeds();
-  }
-}
-
-void respondWithHttp200ToClient(WiFiClient client){
-  client.println("HTTP/1.1 200 OK");
-  client.println(""); //  do not forget this one
 }
 
 void doBlink () {
