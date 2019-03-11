@@ -4,7 +4,7 @@
 #define LED D0 //NodeMCU internal LED
 #define LED1 D5
 #define LED2 D6
-#define LED3 D7
+#define LED3 D8
 
 const long blinkIntervalInMs = 700;
 
@@ -15,8 +15,7 @@ unsigned long previousMilliSeconds = 0;
 WiFiServer server(80);
  
 void setup() {
-  Serial.begin(115200);
-  delay(100);
+  //Serial.begin(115200);
   
   // The internal LED is automatically turned on in normal operation mode,
   // but not needed in this case, so turn it off right at the beginning.
@@ -61,16 +60,9 @@ void loop() {
   String request = client.readStringUntil('\r');
   client.flush();
 
-  if (request.indexOf("/LED=ON") != -1)  {
-    isWindowOpen = true;
-  } else if (request.indexOf("/LED=OFF") != -1) {
-    isWindowOpen = false;
-    ledState = LOW;
-    toggleLeds();
-  }
+  handleRequest(request);
 
-  client.println("HTTP/1.1 200 OK");
-  client.println(""); //  do not forget this one
+  sendHttp200ToClient(client);
 }
 
 void internalLedOff() {
@@ -102,6 +94,21 @@ void doBlink () {
       toggleLeds();
     }
   } 
+}
+
+void handleRequest(String request){
+  if (request.indexOf("/LED=ON") != -1)  {
+    isWindowOpen = true;
+  } else if (request.indexOf("/LED=OFF") != -1) {
+    isWindowOpen = false;
+    ledState = LOW;
+    toggleLeds();
+  }
+}
+
+void sendHttp200ToClient(WiFiClient client) {
+  client.println("HTTP/1.1 200 OK");
+  client.println(""); //  do not forget this one
 }
 
 void toggleLeds() {
