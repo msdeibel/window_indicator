@@ -1,5 +1,9 @@
 #include <ESP8266WiFi.h>
+#include <TimeLib.h>
+#include <NTPClient.h>
+#include <WiFiUdp.h>
 #include ".\window_indicator_wifi_credentials.h"
+#include ".\window_indicator_awake_times.h"
 
 #define LED D0 //NodeMCU internal LED
 #define LED1 D5
@@ -7,16 +11,22 @@
 #define LED3 D8
 
 const long blinkIntervalInMs = 700;
+const long ntpUpdateIntervalInMs = 6e5; //10min
+const long deepSleepIntervalInus = 12e8; //20min
+
 
 bool isWindowOpen = false;
 int ledState = LOW;
-unsigned long previousMilliSeconds = 0;
+unsigned long previousMsBlink = 0;
+unsigned long previousMsNtp = 0;
 
 WiFiServer server(80);
+WiFiUDP ntpUdp;
+NTPClient ntpClient(ntpUdp, "<NTP-Server IP or URI>", 3600);
  
 void setup() {
-  //Serial.begin(115200);
-  
+  Serial.begin(115200);
+  delay(2000);
   // The internal LED is automatically turned on in normal operation mode,
   // but not needed in this case, so turn it off right at the beginning.
   internalLedOff();
@@ -37,12 +47,21 @@ void setup() {
 
   ledState = LOW;
   toggleLeds();
+
+  // Start the NTP client
+  ntpClient.begin();
   
   // Start the server
   server.begin();
 }
  
 void loop() {
+  doNtpUpdate();
+
+  if(ntpClient.getHours() < wakeUpAtHours || ntpClient.getHours() > fallAsleepAfterHours) {
+    ESP.deepSleep(deepSleepIntervalIns);
+  }
+  
   doBlink();
   
   // Check if a client has connected
@@ -76,14 +95,23 @@ void setLedPinsModeToOutput() {
   pinMode(LED3, OUTPUT);
 }
 
+void doNtpUpdate(){
+  unsigned long currentMs = millis();
+
+  if(currentMs - previousMsNtp >= ntpUpdateIntervalInMs) {
+    previousMsNtp = currentMs;
+    ntpClient.update();
+  }
+}
+
 void doBlink () {
   // This check is done using a check for the time passed to not prevent
   // the main loop from listening for new connections
-  unsigned long currentMilliSeconds = millis();
+  unsigned long currentMs = millis();
   
   if(isWindowOpen) {
-    if(currentMilliSeconds - previousMilliSeconds >= blinkIntervalInMs) {
-      previousMilliSeconds = currentMilliSeconds;
+    if(currentMs - previousMsBlink >= blinkIntervalInMs) {
+      previousMsBlink = currentMs;
 
       if(ledState == LOW){
         ledState = HIGH; 
