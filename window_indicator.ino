@@ -35,13 +35,6 @@ void setup() {
     if(wifiRetryCounter++ < WI_WIFI_MAX_RETRIES) {     
       delay(WI_WIFI_RETRY_INTERVALS_MS);
     } else {
-
-      digitalWrite(LED1, HIGH); delay(100); digitalWrite(LED1, LOW); delay(100); 
-      digitalWrite(LED1, HIGH); delay(100); digitalWrite(LED1, LOW); delay(100); 
-      digitalWrite(LED1, HIGH); delay(100); digitalWrite(LED1, LOW); delay(100); 
-      digitalWrite(LED1, HIGH); delay(100); digitalWrite(LED1, LOW); delay(100); 
-      digitalWrite(LED1, HIGH); delay(100); digitalWrite(LED1, LOW); 
-      
       ESP.deepSleep(WI_DEEPSLEEP_INTERVAL_US);
     }
   }
