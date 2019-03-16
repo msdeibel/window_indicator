@@ -1,32 +1,24 @@
 #include <ESP8266WiFi.h>
-#include <TimeLib.h>
 #include <NTPClient.h>
 #include <WiFiUdp.h>
-#include ".\window_indicator_wifi_credentials.h"
-#include ".\window_indicator_awake_times.h"
+#include ".\window_indicator_constants.h"
 
 #define LED D0 //NodeMCU internal LED
 #define LED1 D5
 #define LED2 D6
 #define LED3 D8
 
-const long blinkIntervalInMs = 700;
-const long ntpUpdateIntervalInMs = 6e5; //10min
-const long deepSleepIntervalInus = 12e8; //20min
-
-
 bool isWindowOpen = false;
 int ledState = LOW;
 unsigned long previousMsBlink = 0;
 unsigned long previousMsNtp = 0;
+int wifiRetryCounter = 0;
 
 WiFiServer server(80);
 WiFiUDP ntpUdp;
-NTPClient ntpClient(ntpUdp, "<NTP-Server IP or URI>", 3600);
+NTPClient ntpClient(ntpUdp, WI_NTP_SERVER_ADDRESS, 3600);
  
 void setup() {
-  Serial.begin(115200);
-  delay(2000);
   // The internal LED is automatically turned on in normal operation mode,
   // but not needed in this case, so turn it off right at the beginning.
   internalLedOff();
@@ -37,16 +29,22 @@ void setup() {
   toggleLeds();  
 
   // Connect to WiFi network
-  ledState = HIGH;
-  toggleLeds();
-  WiFi.begin(ssid, password);
+  WiFi.begin(WI_SSID, WI_PASSWORD);
  
   while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-  }
+    if(wifiRetryCounter++ < WI_WIFI_MAX_RETRIES) {     
+      delay(WI_WIFI_RETRY_INTERVALS_MS);
+    } else {
 
-  ledState = LOW;
-  toggleLeds();
+      digitalWrite(LED1, HIGH); delay(100); digitalWrite(LED1, LOW); delay(100); 
+      digitalWrite(LED1, HIGH); delay(100); digitalWrite(LED1, LOW); delay(100); 
+      digitalWrite(LED1, HIGH); delay(100); digitalWrite(LED1, LOW); delay(100); 
+      digitalWrite(LED1, HIGH); delay(100); digitalWrite(LED1, LOW); delay(100); 
+      digitalWrite(LED1, HIGH); delay(100); digitalWrite(LED1, LOW); 
+      
+      ESP.deepSleep(WI_DEEPSLEEP_INTERVAL_US);
+    }
+  }
 
   // Start the NTP client
   ntpClient.begin();
@@ -58,8 +56,9 @@ void setup() {
 void loop() {
   doNtpUpdate();
 
-  if(ntpClient.getHours() < wakeUpAtHours || ntpClient.getHours() > fallAsleepAfterHours) {
-    ESP.deepSleep(deepSleepIntervalIns);
+  if(ntpClient.getHours() < WI_AWAKE_WAKE_UP_AT_OCLOCK 
+      || ntpClient.getHours() > WI_FALL_ASLEEP_AFTER_OCLOCK) {
+    ESP.deepSleep(WI_DEEPSLEEP_INTERVAL_US);
   }
   
   doBlink();
@@ -98,7 +97,7 @@ void setLedPinsModeToOutput() {
 void doNtpUpdate(){
   unsigned long currentMs = millis();
 
-  if(currentMs - previousMsNtp >= ntpUpdateIntervalInMs) {
+  if(currentMs - previousMsNtp >= WI_NTP_UPDATE_INTERVAL_MS) {
     previousMsNtp = currentMs;
     ntpClient.update();
   }
@@ -110,7 +109,7 @@ void doBlink () {
   unsigned long currentMs = millis();
   
   if(isWindowOpen) {
-    if(currentMs - previousMsBlink >= blinkIntervalInMs) {
+    if(currentMs - previousMsBlink >= WI_BLINK_INTERVAL_MS) {
       previousMsBlink = currentMs;
 
       if(ledState == LOW){
