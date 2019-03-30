@@ -59,7 +59,12 @@ void loop() {
 
   doBlink();
 
-  delay(100);
+  if(isWindowOpen){
+    delay(100);  
+  }
+  else{
+    ESP.deepSleep(WI_DEEPSLEEP_INTERVAL_US);
+  }
 }
 
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
