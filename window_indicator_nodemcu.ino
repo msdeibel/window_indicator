@@ -15,6 +15,7 @@ unsigned long previousMsBlink = 0;
 unsigned long previousMsNtp = 0;
 int wifiRetryCounter = 0;
 int hourOfDay = 0;
+int windowClosedLoopCount = 1;
 
 WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
@@ -55,16 +56,18 @@ void loop() {
     reconnect();
   }
 
-  mqttClient.loop();  
+  mqttClient.loop(); 
 
-  doBlink();
+  delay(10);
 
   if(isWindowOpen){
+    windowClosedLoopCount = 0;
     delay(100);  
-  }
-  else{
+  } else if(!isWindowOpen && windowClosedLoopCount++ % 100 == 0){
     ESP.deepSleep(WI_DEEPSLEEP_INTERVAL_US);
   }
+
+  doBlink();
 }
 
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
